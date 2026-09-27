@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#f3eee5" />
+    <meta name="description" content="拾光：收藏日常、回看时间，并写下属于自己的年终手记。" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="拾光" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <title>拾光 · 生活记录</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+    <link rel="apple-touch-icon" href="./app-icon.png" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="主导航">
+        <button class="brand" type="button" data-view="notes" aria-label="回到便签">
+          <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M9 8.5h14v16H9z"/><path d="M12.5 13h7M12.5 17h7M12.5 21h4"/></svg></span><span>拾光</span>
+        </button>
+        <nav class="nav-list">
+          <button class="nav-item active" type="button" data-view="notes"><svg viewBox="0 0 24 24"><path d="M6 4.75h12v14.5H6z"/><path d="M9 9h6M9 12h6M9 15h3"/></svg><span>今日便签</span><span class="nav-count" id="noteCount">0</span></button>
+          <button class="nav-item" type="button" data-view="goals"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><path d="m12 12 7-7M16 5h3v3"/></svg><span>我的目标</span><span class="nav-count" id="goalCount">0</span></button>
+          <button class="nav-item" type="button" data-view="calendar"><svg viewBox="0 0 24 24"><path d="M5 6.5h14v13H5z"/><path d="M8 4v5M16 4v5M5 10h14"/></svg><span>时光日历</span></button>
+          <button class="nav-item" type="button" data-view="review"><svg viewBox="0 0 24 24"><path d="M5 19V9M10 19V5M15 19v-7M20 19V8"/></svg><span>月度回顾</span></button>
+          <button class="nav-item" type="button" data-view="yearbook"><svg viewBox="0 0 24 24"><path d="M5 5.5h14v14H5z"/><path d="M8.5 9h7M8.5 12.5h7M8.5 16h4"/></svg><span>年终手记</span></button>
+          <button class="nav-item" type="button" data-view="trash"><svg viewBox="0 0 24 24"><path d="M5 7h14M9 7V4.5h6V7M7.5 7l.8 12h7.4l.8-12M10 10.5v5M14 10.5v5"/></svg><span>回收站</span><span class="nav-count" id="trashCount">0</span></button>
+        </nav>
+        <div class="sidebar-footer">
+          <div class="quiet-card"><span class="quiet-icon" aria-hidden="true">☼</span><p id="dailySentence">生活不用很满，<br />记得留一点空白。</p></div>
+          <button class="data-button" id="openDataPanel" type="button"><svg viewBox="0 0 24 24"><path d="M12 3.8v10M8.5 7.3 12 3.8l3.5 3.5M5 13.5v5.7h14v-5.7"/></svg>备份与设置</button>
+          <div class="save-state" id="saveState"><span></span><b>已保存在此设备</b></div>
+        </div>
+      </aside>
+
+      <header class="mobile-header">
+        <button class="brand" type="button" data-view="notes"><span class="brand-dot"></span><span>拾光</span></button>
+        <div class="mobile-actions"><button class="icon-button" id="mobileData" type="button" aria-label="备份与设置"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4M12 16h.01"/></svg></button><button class="icon-button filled" id="mobileAdd" type="button" aria-label="新建便签"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button></div>
+      </header>
+
+      <main class="main-content">
+        <section id="notesView" class="view active" aria-labelledby="notesTitle">
+          <div class="page-head"><div><p class="eyebrow" id="todayDate"></p><h1 id="notesTitle">最近写下的</h1></div><button class="primary-button" id="addNote" type="button"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>新建便签</button></div>
+          <div class="toolbar"><label class="search-box"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><span class="sr-only">搜索便签</span><input id="searchInput" type="search" placeholder="找一段记忆…" autocomplete="off" /></label><div class="filter-row" role="group" aria-label="便签筛选"><button class="filter-chip active" type="button" data-filter="all">全部</button><button class="filter-chip" type="button" data-filter="pinned">置顶</button><button class="filter-chip" type="button" data-filter="生活">生活</button><button class="filter-chip" type="button" data-filter="灵感">灵感</button><button class="filter-chip" type="button" data-filter="片刻">片刻</button></div></div>
+          <div class="notes-grid" id="notesGrid" aria-live="polite"></div>
+          <div class="empty-state" id="notesEmpty" hidden><span>⌁</span><h2>这里暂时很安静</h2><p>换个关键词，或者写下一张新便签吧。</p></div>
+        </section>
+
+        <section id="goalsView" class="view" aria-labelledby="goalsTitle">
+          <div class="page-head"><div><p class="eyebrow">GROW AT YOUR OWN PACE</p><h1 id="goalsTitle">慢慢靠近的目标</h1></div><button class="primary-button" id="addGoal" type="button"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>新建目标</button></div>
+          <div class="goals-hero"><div class="goals-intro"><span class="goal-sprout" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M24 39V23M24 29C11 31 8 20 9 14c10-1 18 4 15 15ZM24 23c0-11 8-16 17-15 1 10-7 17-17 15ZM15 39h18"/></svg></span><div><h2>大一点的愿望，<br class="goal-mobile-break" />小一点的步子。</h2><p>不用一口气走完。今天向前一点，也值得记下。</p></div></div><div class="goals-summary" id="goalsSummary"></div></div>
+          <div class="toolbar goals-toolbar"><label class="search-box"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><span class="sr-only">搜索目标</span><input id="goalSearch" type="search" placeholder="找一个想实现的愿望…" autocomplete="off" /></label><div class="filter-row" role="group" aria-label="目标筛选"><button class="filter-chip active" type="button" data-goal-filter="all" aria-pressed="true">全部</button><button class="filter-chip" type="button" data-goal-filter="active" aria-pressed="false">进行中</button><button class="filter-chip" type="button" data-goal-filter="completed" aria-pressed="false">已完成</button></div></div>
+          <div class="goals-grid" id="goalsGrid" aria-live="polite"></div><div class="empty-state" id="goalsEmpty" hidden><span>❧</span><h2 id="goalsEmptyTitle">给一个愿望留个位置</h2><p id="goalsEmptyText">写下目标，再拆成几件可以慢慢完成的小事。</p></div>
+        </section>
+
+        <section id="calendarView" class="view" aria-labelledby="calendarTitle">
+          <div class="page-head calendar-head"><div><p class="eyebrow">CALENDAR OF MOMENTS</p><h1 id="calendarTitle">时光日历</h1></div><div class="month-switcher"><button class="icon-button" id="calendarPrev" type="button" aria-label="上个月"><svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg></button><strong id="calendarMonthLabel"></strong><button class="icon-button" id="calendarNext" type="button" aria-label="下个月"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></button></div></div>
+          <div class="calendar-layout"><div class="calendar-paper"><div class="weekdays"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div><div class="calendar-grid" id="calendarGrid"></div></div><aside class="day-panel"><p class="eyebrow">TIMELINE</p><h2 id="selectedDateLabel">这个月的片刻</h2><div class="timeline" id="timeline"></div></aside></div>
+        </section>
+
+        <section id="reviewView" class="view" aria-labelledby="reviewTitle">
+          <div class="page-head review-head"><div><p class="eyebrow">A MONTH IN REVIEW</p><h1 id="reviewTitle">月度回顾</h1></div><div class="month-switcher"><button class="icon-button" id="reviewPrev" type="button" aria-label="上个月"><svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg></button><strong id="reviewMonthLabel"></strong><button class="icon-button" id="reviewNext" type="button" aria-label="下个月"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></button></div></div>
+          <div class="review-hero"><div><span class="review-month" id="reviewMonthNumber"></span><p>日子一页页翻过，<br />留下来的都有回声。</p></div><div class="review-stats" id="reviewStats"></div></div>
+          <div class="review-grid"><section class="review-card"><p class="eyebrow">心情天气</p><div id="moodChart" class="mood-chart"></div></section><section class="review-card"><p class="eyebrow">生活切片</p><div id="tagChart" class="tag-chart"></div></section><section class="review-card wide"><div class="review-card-head"><div><p class="eyebrow">值得再读</p><h2>这个月的三束光</h2></div><button class="secondary-button" id="addReviewToYearbook" type="button">写入年终手记</button></div><div id="reviewHighlights" class="review-highlights"></div></section></div>
+        </section>
+
+        <section id="yearbookView" class="view" aria-labelledby="yearbookTitle">
+          <div class="page-head yearbook-head"><div><p class="eyebrow">MY YEAR IN WORDS</p><h1 id="yearbookTitle"><span id="yearLabel"></span> 年终手记</h1></div><div class="head-actions"><div class="segmented" role="group" aria-label="编辑模式"><button type="button" class="active" data-mode="write">书写</button><button type="button" data-mode="preview">预览</button></div><button class="secondary-button" id="exportMd" type="button"><svg viewBox="0 0 24 24"><path d="M12 4v11M8 11l4 4 4-4M5 19h14"/></svg>导出 .md</button></div></div>
+          <div class="yearbook-meta"><span><i class="status-dot"></i> 自动保存</span><span id="wordCount">0 字</span><span>Markdown</span></div><div class="editor-paper"><textarea id="markdownEditor" spellcheck="false" aria-label="年终手记 Markdown 编辑器"></textarea><article id="markdownPreview" class="markdown-body" hidden></article></div><p class="editor-hint">便签可以一键收录到这里。支持标题、列表、引用、粗体和分隔线。</p>
+        </section>
+
+        <section id="trashView" class="view" aria-labelledby="trashTitle">
+          <div class="page-head"><div><p class="eyebrow">RECENTLY DELETED</p><h1 id="trashTitle">回收站</h1></div><button class="secondary-button danger-outline" id="emptyTrash" type="button">清空回收站</button></div><p class="section-note">删除的便签会先来到这里。你可以恢复它，或者永久删除。</p><div class="trash-list" id="trashList"></div><div class="empty-state" id="trashEmpty" hidden><span>♲</span><h2>回收站是空的</h2><p>这里没有需要惦记的东西。</p></div>
+        </section>
+      </main>
+
+      <nav class="mobile-nav" aria-label="移动端主导航">
+        <button class="active" type="button" data-view="notes"><svg viewBox="0 0 24 24"><path d="M6 5h12v14H6z"/></svg><span>便签</span></button>
+        <button type="button" data-view="goals"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><path d="m12 12 7-7"/></svg><span>目标</span></button>
+        <button type="button" data-view="calendar"><svg viewBox="0 0 24 24"><path d="M5 7h14v12H5zM8 4v5M16 4v5"/></svg><span>日历</span></button><button type="button" data-view="review"><svg viewBox="0 0 24 24"><path d="M6 18V9M12 18V5M18 18v-6"/></svg><span>回顾</span></button><button type="button" data-view="yearbook"><svg viewBox="0 0 24 24"><path d="M5 5h14v14H5zM8 9h8M8 13h6"/></svg><span>手记</span></button><button type="button" data-view="trash"><svg viewBox="0 0 24 24"><path d="M6 7h12M8 7l1 12h6l1-12M9 4h6"/></svg><span>回收站</span></button>
+      </nav>
+    </div>
+
+    <div class="modal-backdrop" id="noteModal" hidden><section class="note-dialog" role="dialog" aria-modal="true" aria-labelledby="dialogTitle"><div class="dialog-head"><div><p class="eyebrow" id="dialogEyebrow">NEW NOTE</p><h2 id="dialogTitle">留下一点什么</h2></div><button class="icon-button close-button" id="closeModal" type="button" aria-label="关闭"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div><form id="noteForm">
+      <input type="hidden" id="noteId" /><label class="field"><span>标题</span><input id="noteTitle" maxlength="40" placeholder="这一刻，想记下…" required /></label><label class="field"><span>内容</span><textarea id="noteBody" maxlength="1000" placeholder="慢慢写，不着急。" required></textarea></label>
+      <div class="form-split"><fieldset><legend>归在哪一页</legend><div class="tag-options"><label><input type="radio" name="noteTag" value="生活" checked /><span>生活</span></label><label><input type="radio" name="noteTag" value="灵感" /><span>灵感</span></label><label><input type="radio" name="noteTag" value="片刻" /><span>片刻</span></label></div></fieldset><fieldset><legend>今天的心情</legend><div class="mood-options" id="moodOptions"><label><input type="radio" name="noteMood" value="晴" checked /><span title="晴">☀</span></label><label><input type="radio" name="noteMood" value="暖" /><span title="暖">◡</span></label><label><input type="radio" name="noteMood" value="静" /><span title="静">☁</span></label><label><input type="radio" name="noteMood" value="雨" /><span title="雨">☂</span></label><label><input type="radio" name="noteMood" value="累" /><span title="累">◒</span></label></div></fieldset></div>
+      <div class="photo-field"><div class="photo-label"><span>一张照片 <small>可选，最大 5 MB</small></span><button type="button" class="text-button" id="removePhoto" hidden>移除照片</button></div><label class="photo-picker" id="photoPicker"><input type="file" id="notePhoto" accept="image/*" /><span><b>＋</b> 选择生活里的画面</span><img id="photoPreview" alt="便签照片预览" hidden /></label></div>
+      <div class="reminder-field"><label class="reminder-toggle"><span><b>提醒便签</b><small>到时间后提醒，确认完成即自动删除</small></span><input id="reminderEnabled" type="checkbox" role="switch" /></label><div class="reminder-time" id="reminderTimeWrap" hidden><label for="reminderAt">提醒时间</label><input id="reminderAt" type="datetime-local" /><p id="reminderHint">桌面版会交给 Windows 记住这个提醒。</p></div></div>
+      <label class="pin-check"><input id="notePinned" type="checkbox" /><span>把这张便签放在最前面</span></label><div class="dialog-actions"><button class="delete-button" id="deleteNote" type="button" hidden>移到回收站</button><button class="secondary-button" id="collectNote" type="button" hidden>收录到年终手记</button><button class="primary-button" type="submit">收好这张便签</button></div></form></section></div>
+
+    <div class="modal-backdrop" id="dataModal" hidden><section class="data-dialog" role="dialog" aria-modal="true" aria-labelledby="dataTitle"><div class="dialog-head"><div><p class="eyebrow">YOUR DATA</p><h2 id="dataTitle">备份与设置</h2></div><button class="icon-button close-button" id="closeDataModal" type="button" aria-label="关闭"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+      <div class="setting-group"><h3>把记忆带在身边</h3><p>备份文件包含便签、照片、目标与分步任务、回收站和年终手记。换电脑时，导入这个文件就能继续使用。</p><div class="setting-actions"><button class="primary-button" id="backupAll" type="button">导出完整备份</button><label class="secondary-button file-button">导入备份<input id="restoreInput" type="file" accept="application/json,.json" /></label></div></div>
+      <div class="setting-group"><h3>看起来舒服一点</h3><div class="theme-row"><button type="button" data-theme-choice="light" class="theme-choice active"><span class="theme-swatch light"></span>晨光</button><button type="button" data-theme-choice="dark" class="theme-choice"><span class="theme-swatch dark"></span>夜读</button><button type="button" data-theme-choice="system" class="theme-choice"><span class="theme-swatch system"></span>跟随系统</button></div></div>
+      <div class="setting-group install-group"><h3>像软件一样打开</h3><p id="installHint">安装后会拥有独立窗口和桌面图标，仍可离线使用。</p><button class="secondary-button" id="installApp" type="button">安装桌面版</button></div><p class="data-footnote">拾光不会主动上传你的记录。清理应用数据前，请先导出备份。</p></section></div>
+
+    <div class="modal-backdrop reminder-backdrop" id="reminderModal" hidden><section class="reminder-dialog" role="alertdialog" aria-modal="true" aria-labelledby="reminderDialogTitle" aria-describedby="reminderDialogBody"><div class="reminder-bell" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6.5 16.5h11l-1.4-2.1V10a4.1 4.1 0 0 0-8.2 0v4.4l-1.4 2.1ZM10 19h4"/></svg></div><p class="eyebrow" id="reminderEyebrow">IT'S TIME</p><h2 id="reminderDialogTitle">提醒时间到了</h2><time id="reminderDialogTime"></time><p id="reminderDialogBody"></p><div class="reminder-actions"><button class="secondary-button" id="snoozeReminder" type="button">稍后 10 分钟</button><button class="primary-button" id="completeReminder" type="button">我知道了，删除便签</button></div><p class="reminder-footnote">确认后这张提醒便签会永久删除。</p></section></div>
+
+    <div class="modal-backdrop" id="goalModal" hidden><section class="note-dialog goal-dialog" role="dialog" aria-modal="true" aria-labelledby="goalDialogTitle"><div class="dialog-head"><div><p class="eyebrow">ONE SMALL STEP</p><h2 id="goalDialogTitle">给愿望一个方向</h2></div><button class="icon-button close-button" id="closeGoalModal" type="button" aria-label="关闭目标编辑"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div><form id="goalForm"><input id="goalId" type="hidden" /><label class="field"><span>想实现什么</span><input id="goalTitle" maxlength="60" placeholder="比如：读完一直想看的 6 本书" required /></label><label class="field"><span>为什么想做 <small>可选</small></span><textarea id="goalBody" maxlength="1500" placeholder="记住出发时的心意。"></textarea></label><label class="field goal-date-field"><span>计划完成日期 <small>可选，不设也可以</small></span><input id="goalTargetDate" type="date" /></label><div class="goal-steps-field"><div class="goal-steps-heading"><span>拆成几件小事 <small>可选，最多 30 步</small></span><button class="text-button" id="addGoalStep" type="button">＋ 添加一步</button></div><div id="goalStepsEditor" class="goal-steps-editor"></div><p id="goalStepsHint" class="goal-form-hint">一小步一小步来；也可以先写下目标，以后再补。</p></div><div class="dialog-actions"><button class="delete-button" id="deleteGoal" type="button" hidden>删除目标</button><button class="primary-button" type="submit">收好这个目标</button></div></form></section></div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div><script src="./app.js"></script>
+  </body>
+</html>

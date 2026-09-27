@@ -1,0 +1,14 @@
+{
+  "name": "拾光 · 生活记录",
+  "short_name": "拾光",
+  "description": "收藏日常、回看时间，并写下属于自己的年终手记。",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f3eee5",
+  "theme_color": "#bd5f45",
+  "icons": [
+    { "src": "./app-icon.png", "sizes": "1254x1254", "type": "image/png", "purpose": "any maskable" },
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
