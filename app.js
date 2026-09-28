@@ -41,7 +41,7 @@ const defaultMarkdown = `# ${currentYear}，缓慢而明亮的一年
 `;
 
 let state = {
-  version: 3,
+  version: 4,
   notes: [],
   goals: [],
   trash: [],
@@ -50,7 +50,7 @@ let state = {
 };
 let calendarCursor = new Date(currentYear, now.getMonth(), 1);
 let reviewCursor = new Date(currentYear, now.getMonth(), 1);
-let selectedDate = null;
+let selectedDate = dateKey(now);
 let activeFilter = "all";
 let searchQuery = "";
 let pendingPhoto = "";
@@ -67,9 +67,9 @@ const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const els = {
   notesGrid: $("#notesGrid"), notesEmpty: $("#notesEmpty"), noteCount: $("#noteCount"), trashCount: $("#trashCount"), search: $("#searchInput"),
-  noteModal: $("#noteModal"), form: $("#noteForm"), noteId: $("#noteId"), noteTitle: $("#noteTitle"), noteBody: $("#noteBody"), notePinned: $("#notePinned"), reminderEnabled: $("#reminderEnabled"), reminderAt: $("#reminderAt"), reminderTimeWrap: $("#reminderTimeWrap"), reminderHint: $("#reminderHint"),
+  noteModal: $("#noteModal"), form: $("#noteForm"), noteId: $("#noteId"), noteTitle: $("#noteTitle"), noteBody: $("#noteBody"), noteDate: $("#noteDate"), noteDateHint: $("#noteDateHint"), notePinned: $("#notePinned"), reminderEnabled: $("#reminderEnabled"), reminderAt: $("#reminderAt"), reminderTimeWrap: $("#reminderTimeWrap"), reminderHint: $("#reminderHint"),
   deleteNote: $("#deleteNote"), collectNote: $("#collectNote"), dialogTitle: $("#dialogTitle"), dialogEyebrow: $("#dialogEyebrow"), photoInput: $("#notePhoto"), photoPreview: $("#photoPreview"), photoPicker: $("#photoPicker"), removePhoto: $("#removePhoto"),
-  calendarLabel: $("#calendarMonthLabel"), calendarGrid: $("#calendarGrid"), selectedDateLabel: $("#selectedDateLabel"), timeline: $("#timeline"),
+  calendarLabel: $("#calendarMonthLabel"), calendarGrid: $("#calendarGrid"), selectedDateLabel: $("#selectedDateLabel"), timeline: $("#timeline"), calendarNoteHint: $("#calendarNoteHint"), addCalendarNote: $("#addCalendarNote"),
   reviewLabel: $("#reviewMonthLabel"), reviewMonthNumber: $("#reviewMonthNumber"), reviewStats: $("#reviewStats"), moodChart: $("#moodChart"), tagChart: $("#tagChart"), reviewHighlights: $("#reviewHighlights"),
   editor: $("#markdownEditor"), preview: $("#markdownPreview"), wordCount: $("#wordCount"),
   goalsGrid: $("#goalsGrid"), goalsEmpty: $("#goalsEmpty"), goalsSummary: $("#goalsSummary"), goalCount: $("#goalCount"), goalModal: $("#goalModal"), goalForm: $("#goalForm"), goalId: $("#goalId"), goalTitle: $("#goalTitle"), goalBody: $("#goalBody"), goalTargetDate: $("#goalTargetDate"), goalStepsEditor: $("#goalStepsEditor"), deleteGoal: $("#deleteGoal"),
@@ -139,20 +139,35 @@ function scheduleSave() {
 function normalizeState(raw) {
   const cleanNotes = (Array.isArray(raw?.notes) ? raw.notes : defaultNotes).map((note) => ({
     id: String(note.id || uid()), title: String(note.title || "无题"), body: String(note.body || ""), tag: ["生活", "灵感", "片刻"].includes(note.tag) ? note.tag : "生活",
-    mood: moods[note.mood] ? note.mood : "晴", pinned: Boolean(note.pinned), photo: typeof note.photo === "string" ? note.photo : "", reminderAt: typeof note.reminderAt === "string" && note.reminderAt ? note.reminderAt : "", createdAt: note.createdAt || new Date().toISOString(), updatedAt: note.updatedAt || note.createdAt || new Date().toISOString(),
+    mood: moods[note.mood] ? note.mood : "晴", pinned: Boolean(note.pinned), photo: typeof note.photo === "string" ? note.photo : "", noteDate: noteDateKey(note), reminderAt: typeof note.reminderAt === "string" && note.reminderAt ? note.reminderAt : "", createdAt: note.createdAt || new Date().toISOString(), updatedAt: note.updatedAt || note.createdAt || new Date().toISOString(),
   }));
   const cleanGoals = (Array.isArray(raw?.goals) ? raw.goals : []).filter((goal) => goal && typeof goal === "object").map((goal) => ({
     id: String(goal.id || uid()), title: String(goal.title || "一个小愿望").slice(0, 60), body: String(goal.body || "").slice(0, 1500), targetDate: validGoalDate(goal.targetDate),
     milestones: (Array.isArray(goal.milestones) ? goal.milestones : []).filter((step) => step && String(step.text || "").trim()).slice(0, 30).map((step) => ({ id: String(step.id || uid()), text: String(step.text).slice(0, 120), done: step.done === true })),
     status: goal.status === "completed" ? "completed" : "active", completedAt: goal.completedAt || "", createdAt: goal.createdAt || new Date().toISOString(), updatedAt: goal.updatedAt || goal.createdAt || new Date().toISOString(),
   }));
-  return { version: 3, notes: cleanNotes, goals: cleanGoals, trash: Array.isArray(raw?.trash) ? raw.trash : [], yearbook: typeof raw?.yearbook === "string" ? raw.yearbook : defaultMarkdown, theme: ["light", "dark", "system"].includes(raw?.theme) ? raw.theme : "light" };
+  return { version: 4, notes: cleanNotes, goals: cleanGoals, trash: Array.isArray(raw?.trash) ? raw.trash.map((note) => ({ ...note, noteDate: noteDateKey(note) })) : [], yearbook: typeof raw?.yearbook === "string" ? raw.yearbook : defaultMarkdown, theme: ["light", "dark", "system"].includes(raw?.theme) ? raw.theme : "light" };
 }
 
 function validGoalDate(value) {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return "";
   const date = new Date(`${value}T12:00:00`);
   return Number.isFinite(date.getTime()) && dateKey(date) === value ? value : "";
+}
+
+function noteDateKey(note) {
+  const chosen = validGoalDate(note?.noteDate);
+  if (chosen) return chosen;
+  const created = note?.createdAt ? new Date(note.createdAt) : new Date();
+  return dateKey(Number.isFinite(created.getTime()) ? created : new Date());
+}
+function noteDay(note) { return `${noteDateKey(note)}T12:00:00`; }
+function calendarDraftDate() {
+  if (selectedDate) return selectedDate;
+  return monthKey(calendarCursor) === monthKey(new Date()) ? dateKey(new Date()) : dateKey(calendarCursor);
+}
+function defaultReminderForDate(day) {
+  return day > dateKey(new Date()) ? `${day}T09:00` : toDateTimeLocal(new Date(Date.now() + 60 * 60 * 1000));
 }
 
 function uid() { return crypto.randomUUID?.() || `note-${Date.now()}-${Math.random().toString(16).slice(2)}`; }
@@ -165,7 +180,7 @@ function shortDate(input) { return new Date(input).toLocaleDateString("zh-CN", {
 function shortTime(input) { return new Date(input).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false }); }
 function reminderText(input) { return new Date(input).toLocaleString("zh-CN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }); }
 function toDateTimeLocal(input) { const d = new Date(input); const offset = d.getTimezoneOffset() * 60000; return new Date(d.getTime() - offset).toISOString().slice(0, 16); }
-function notesForMonth(cursor) { const key = monthKey(cursor); return state.notes.filter((note) => monthKey(note.createdAt) === key); }
+function notesForMonth(cursor) { const key = monthKey(cursor); return state.notes.filter((note) => noteDateKey(note).slice(0, 7) === key); }
 function downloadFile(content, filename, type) { const blob = new Blob([content], { type }); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = filename; link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 1000); }
 
 function showToast(message) {
@@ -178,13 +193,13 @@ function renderNotes() {
   const visible = state.notes.filter((note) => {
     const matchesFilter = activeFilter === "all" || (activeFilter === "pinned" ? note.pinned : note.tag === activeFilter);
     return matchesFilter && (!query || `${note.title} ${note.body} ${note.tag} ${note.mood}`.toLowerCase().includes(query));
-  }).sort((a, b) => Number(b.pinned) - Number(a.pinned) || new Date(b.createdAt) - new Date(a.createdAt));
+  }).sort((a, b) => Number(b.pinned) - Number(a.pinned) || noteDateKey(b).localeCompare(noteDateKey(a)) || new Date(b.createdAt) - new Date(a.createdAt));
   els.notesGrid.innerHTML = visible.map((note) => `
     <article class="note-card ${note.photo ? "has-photo" : ""}" data-id="${escapeHtml(note.id)}">
       ${note.photo ? `<img class="note-photo" src="${note.photo}" alt="${escapeHtml(note.title)}的照片" />` : ""}
       ${note.pinned ? '<span class="pin-ribbon" aria-label="已置顶"></span>' : ""}
       <span class="mood-stamp" title="心情：${moods[note.mood].label}">${moods[note.mood].icon}</span>
-      <div class="note-top"><span class="note-tag">${escapeHtml(note.tag)}</span><time class="note-time" datetime="${note.createdAt}">${shortDate(note.createdAt)}</time></div>
+      <div class="note-top"><span class="note-tag">${escapeHtml(note.tag)}</span><time class="note-time" datetime="${noteDateKey(note)}">${noteDateKey(note) > dateKey(new Date()) ? "计划 · " : ""}${shortDate(noteDay(note))}</time></div>
       <h2>${escapeHtml(note.title)}</h2><p>${escapeHtml(note.body)}</p>
       ${note.reminderAt ? `<span class="reminder-badge ${new Date(note.reminderAt) <= new Date() ? "overdue" : ""}"><svg viewBox="0 0 24 24"><path d="M7 16h10l-1.2-2v-4a3.8 3.8 0 0 0-7.6 0v4L7 16ZM10 19h4"/></svg>${new Date(note.reminderAt) <= new Date() ? "待确认 · " : "提醒 · "}${reminderText(note.reminderAt)}</span>` : ""}
       <div class="note-card-actions">
@@ -198,14 +213,28 @@ function renderNotes() {
   els.trashCount.textContent = state.trash.length;
 }
 
-function openNote(id = "") {
+function openNote(id = "", targetDate = "") {
   const note = state.notes.find((item) => item.id === id);
   els.form.reset(); els.noteId.value = note?.id || ""; els.noteTitle.value = note?.title || ""; els.noteBody.value = note?.body || ""; els.notePinned.checked = Boolean(note?.pinned);
+  els.noteDate.value = note ? noteDateKey(note) : validGoalDate(targetDate) || dateKey(new Date()); els.noteDate.setCustomValidity(""); els.reminderAt.setCustomValidity("");
   const tagRadio = els.form.querySelector(`input[name="noteTag"][value="${note?.tag || "生活"}"]`); if (tagRadio) tagRadio.checked = true;
   const moodRadio = els.form.querySelector(`input[name="noteMood"][value="${note?.mood || "晴"}"]`); if (moodRadio) moodRadio.checked = true;
-  pendingPhoto = note?.photo || ""; renderPhotoPreview(); els.reminderEnabled.checked = Boolean(note?.reminderAt); els.reminderAt.value = note?.reminderAt ? toDateTimeLocal(note.reminderAt) : toDateTimeLocal(new Date(Date.now() + 60 * 60 * 1000)); renderReminderField();
+  pendingPhoto = note?.photo || ""; renderPhotoPreview(); els.reminderEnabled.checked = Boolean(note?.reminderAt); els.reminderAt.value = note?.reminderAt ? toDateTimeLocal(note.reminderAt) : defaultReminderForDate(els.noteDate.value); renderReminderField(); updateNoteDateField();
   els.dialogEyebrow.textContent = note ? "EDIT NOTE" : "NEW NOTE"; els.dialogTitle.textContent = note ? "再读一遍，也可以改改" : "留下一点什么";
   els.deleteNote.hidden = !note; els.collectNote.hidden = !note; openModal(els.noteModal); setTimeout(() => els.noteTitle.focus(), 50);
+}
+
+function updateNoteDateField() {
+  els.noteDate.setCustomValidity("");
+  const day = validGoalDate(els.noteDate.value);
+  els.noteDateHint.textContent = day && day > dateKey(new Date())
+    ? "会显示在这个未来日期。需要到时提醒，请打开下面的“提醒便签”。"
+    : "便签会显示在所选日期；可以提前安排，也可以补记过去。";
+  if (day && !els.reminderEnabled.checked) els.reminderAt.value = defaultReminderForDate(day);
+}
+
+function openNewNote() {
+  openNote("", $("#calendarView").classList.contains("active") ? calendarDraftDate() : dateKey(new Date()));
 }
 
 function renderPhotoPreview() {
@@ -295,44 +324,46 @@ function moveToTrash(id) {
 
 function collectToYearbook(id) {
   const note = state.notes.find((item) => item.id === id); if (!note) return;
-  const block = `\n\n### ${shortDate(note.createdAt)} · ${note.title}\n\n> 心情：${moods[note.mood].label}｜${note.tag}\n\n${note.body}\n`;
+  const block = `\n\n### ${shortDate(noteDay(note))} · ${note.title}\n\n> 心情：${moods[note.mood].label}｜${note.tag}\n\n${note.body}\n`;
   state.yearbook = `${state.yearbook.trimEnd()}${block}`; els.editor.value = state.yearbook; updateMarkdown(false); scheduleSave(); showToast("已经收录到年终手记");
 }
 
 function renderCalendar() {
   els.calendarLabel.textContent = monthName(calendarCursor);
   const year = calendarCursor.getFullYear(); const month = calendarCursor.getMonth(); const first = new Date(year, month, 1); const mondayOffset = (first.getDay() + 6) % 7; const start = new Date(year, month, 1 - mondayOffset);
-  const counts = state.notes.reduce((map, note) => { const key = dateKey(note.createdAt); map[key] = (map[key] || 0) + 1; return map; }, {});
+  const counts = state.notes.reduce((map, note) => { const key = noteDateKey(note); map[key] = (map[key] || 0) + 1; return map; }, {});
   els.calendarGrid.innerHTML = Array.from({ length: 42 }, (_, index) => {
-    const day = new Date(start); day.setDate(start.getDate() + index); const key = dateKey(day); const count = counts[key] || 0; const outside = day.getMonth() !== month; const isToday = key === dateKey(now); const isSelected = key === selectedDate;
-    return `<button class="calendar-day ${outside ? "outside" : ""} ${isToday ? "today" : ""} ${isSelected ? "selected" : ""}" data-date="${key}" type="button" aria-label="${fullDate(day)}，${count} 条记录"><span class="day-number">${day.getDate()}</span>${count ? `<span class="day-marks">${Array.from({length: Math.min(3,count)}, () => "<i></i>").join("")}<small>${count}</small></span>` : ""}</button>`;
+    const day = new Date(start); day.setDate(start.getDate() + index); const key = dateKey(day); const count = counts[key] || 0; const outside = day.getMonth() !== month; const isToday = key === dateKey(new Date()); const isSelected = key === selectedDate;
+    return `<button class="calendar-day ${outside ? "outside" : ""} ${isToday ? "today" : ""} ${isSelected ? "selected" : ""}" data-date="${key}" type="button" aria-pressed="${isSelected}" aria-label="${fullDate(day)}，${count} 条便签"><span class="day-number">${day.getDate()}</span>${count ? `<span class="day-marks">${Array.from({length: Math.min(3,count)}, () => "<i></i>").join("")}<small>${count}</small></span>` : ""}</button>`;
   }).join("");
   renderTimeline();
 }
 
 function renderTimeline() {
   let notes = notesForMonth(calendarCursor);
-  if (selectedDate) notes = state.notes.filter((note) => dateKey(note.createdAt) === selectedDate);
-  notes.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  els.selectedDateLabel.textContent = selectedDate ? fullDate(`${selectedDate}T12:00:00`) : `${calendarCursor.getMonth() + 1} 月的片刻`;
-  els.timeline.innerHTML = notes.length ? notes.map((note) => `<div class="timeline-item"><time>${shortTime(note.createdAt)} · ${escapeHtml(note.tag)} · ${moods[note.mood].icon}</time><button type="button" data-id="${escapeHtml(note.id)}"><h3>${escapeHtml(note.title)}</h3><p>${escapeHtml(note.body)}</p></button></div>`).join("") : '<div class="timeline-empty">这一天还没有留下文字。<br>空白也算生活的一部分。</div>';
+  if (selectedDate) notes = state.notes.filter((note) => noteDateKey(note) === selectedDate);
+  notes.sort((a, b) => noteDateKey(a).localeCompare(noteDateKey(b)) || new Date(a.reminderAt || a.createdAt) - new Date(b.reminderAt || b.createdAt));
+  els.selectedDateLabel.textContent = selectedDate ? fullDate(`${selectedDate}T12:00:00`) : `${calendarCursor.getMonth() + 1} 月的便签`;
+  els.addCalendarNote.textContent = selectedDate ? "为这一天写便签" : "为这个月写便签";
+  els.calendarNoteHint.textContent = selectedDate ? "给这一天留一句话，或开启提醒，记住待办的小事。" : "点选任意日期，就能提前安排或补记过去。";
+  els.timeline.innerHTML = notes.length ? notes.map((note) => `<div class="timeline-item"><time>${selectedDate ? "" : `${shortDate(noteDay(note))} · `}${note.reminderAt ? `提醒 ${reminderText(note.reminderAt)}` : "便签"} · ${escapeHtml(note.tag)} · ${moods[note.mood].icon}</time><button type="button" data-id="${escapeHtml(note.id)}"><h3>${escapeHtml(note.title)}</h3><p>${escapeHtml(note.body)}</p></button></div>`).join("") : '<div class="timeline-empty">还没有便签。<br>提前写下想记住的事吧。</div>';
 }
 
 function renderReview() {
   const notes = notesForMonth(reviewCursor).sort((a, b) => Number(b.pinned) - Number(a.pinned) || new Date(b.createdAt) - new Date(a.createdAt));
-  const days = new Set(notes.map((note) => dateKey(note.createdAt))).size; const chars = notes.reduce((sum, note) => sum + note.title.length + note.body.length, 0);
+  const days = new Set(notes.map(noteDateKey)).size; const chars = notes.reduce((sum, note) => sum + note.title.length + note.body.length, 0);
   els.reviewLabel.textContent = monthName(reviewCursor); els.reviewMonthNumber.textContent = String(reviewCursor.getMonth() + 1).padStart(2, "0");
   els.reviewStats.innerHTML = `<div class="review-stat"><strong>${notes.length}</strong><span>段记录</span></div><div class="review-stat"><strong>${days}</strong><span>个有字的日子</span></div><div class="review-stat"><strong>${chars}</strong><span>个生活的字</span></div>`;
   const moodCounts = Object.keys(moods).reduce((map, mood) => ({ ...map, [mood]: notes.filter((note) => note.mood === mood).length }), {}); const moodMax = Math.max(1, ...Object.values(moodCounts));
   els.moodChart.innerHTML = Object.entries(moods).map(([key, info]) => `<div class="mood-column"><i style="height:${Math.max(4, moodCounts[key] / moodMax * 96)}px"></i><b title="${info.label}">${info.icon}</b><small>${moodCounts[key]}</small></div>`).join("");
   const tags = ["生活", "灵感", "片刻"].map((tag) => ({ tag, count: notes.filter((note) => note.tag === tag).length })); const tagMax = Math.max(1, ...tags.map((item) => item.count));
   els.tagChart.innerHTML = tags.map((item) => `<div class="tag-row"><span>${item.tag}</span><div class="tag-track"><div class="tag-fill" style="width:${item.count / tagMax * 100}%"></div></div><b>${item.count}</b></div>`).join("");
-  els.reviewHighlights.innerHTML = notes.length ? notes.slice(0,3).map((note) => `<article class="highlight"><time>${shortDate(note.createdAt)} · ${moods[note.mood].icon}</time><h3>${escapeHtml(note.title)}</h3><p>${escapeHtml(note.body)}</p></article>`).join("") : '<div class="timeline-empty">这个月还没有记录。先去写下一张便签吧。</div>';
+  els.reviewHighlights.innerHTML = notes.length ? notes.slice(0,3).map((note) => `<article class="highlight"><time>${shortDate(noteDay(note))} · ${moods[note.mood].icon}</time><h3>${escapeHtml(note.title)}</h3><p>${escapeHtml(note.body)}</p></article>`).join("") : '<div class="timeline-empty">这个月还没有记录。先去写下一张便签吧。</div>';
   $("#addReviewToYearbook").disabled = notes.length === 0;
 }
 
 function monthlyReviewMarkdown() {
-  const notes = notesForMonth(reviewCursor).sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt)); if (!notes.length) return "";
+  const notes = notesForMonth(reviewCursor).sort((a,b) => noteDateKey(a).localeCompare(noteDateKey(b)) || new Date(a.createdAt) - new Date(b.createdAt)); if (!notes.length) return "";
   const topMood = Object.keys(moods).sort((a,b) => notes.filter(n => n.mood === b).length - notes.filter(n => n.mood === a).length)[0];
   return `\n\n## ${monthName(reviewCursor)}回顾\n\n> 这个月写下 ${notes.length} 段记录，最常出现的心情是“${moods[topMood].label}”。\n\n${notes.slice(0,3).map((note) => `- **${note.title}**：${note.body.replace(/\n/g," ").slice(0,80)}`).join("\n")}\n`;
 }
@@ -428,7 +459,7 @@ function applyTheme(choice) {
 }
 
 function backupAll() {
-  const backup = { app: "拾光", format: "shiguang-backup", version: 3, exportedAt: new Date().toISOString(), data: state };
+  const backup = { app: "拾光", format: "shiguang-backup", version: 4, exportedAt: new Date().toISOString(), data: state };
   downloadFile(JSON.stringify(backup, null, 2), `拾光-完整备份-${dateKey(now)}.json`, "application/json;charset=utf-8"); showToast("完整备份已经导出");
 }
 
@@ -444,7 +475,8 @@ function shiftMonth(cursor, amount) { return new Date(cursor.getFullYear(), curs
 
 function bindEvents() {
   $$('[data-view]').forEach((button) => button.addEventListener("click", () => switchView(button.dataset.view)));
-  $("#addNote").addEventListener("click", () => openNote()); $("#mobileAdd").addEventListener("click", () => $("#goalsView").classList.contains("active") ? openGoal() : openNote());
+  $("#addNote").addEventListener("click", openNewNote); $("#mobileAdd").addEventListener("click", () => $("#goalsView").classList.contains("active") ? openGoal() : openNewNote());
+  els.addCalendarNote.addEventListener("click", () => openNote("", calendarDraftDate())); els.noteDate.addEventListener("input", updateNoteDateField); els.noteDate.addEventListener("change", updateNoteDateField);
   $("#closeModal").addEventListener("click", () => closeModal(els.noteModal)); $("#openDataPanel").addEventListener("click", () => openModal(els.dataModal)); $("#mobileData").addEventListener("click", () => openModal(els.dataModal)); $("#closeDataModal").addEventListener("click", () => closeModal(els.dataModal));
   [els.noteModal, els.dataModal, els.goalModal].forEach((modal) => modal.addEventListener("click", (event) => { if (event.target === modal) closeModal(modal); }));
   document.addEventListener("keydown", (event) => { if (event.key === "Escape" && els.reminderModal.hidden) { if (!els.goalModal.hidden) closeModal(els.goalModal); else if (!els.noteModal.hidden) closeModal(els.noteModal); else if (!els.dataModal.hidden) closeModal(els.dataModal); } });
@@ -485,10 +517,14 @@ function bindEvents() {
     else if (action === "collect") collectToYearbook(card.dataset.id); else openNote(card.dataset.id);
   });
   els.form.addEventListener("submit", (event) => {
-    event.preventDefault(); const id = els.noteId.value; const old = state.notes.find((item) => item.id === id); const reminderAt = els.reminderEnabled.checked ? new Date(els.reminderAt.value) : null;
+    event.preventDefault(); const id = els.noteId.value; const old = state.notes.find((item) => item.id === id); const noteDate = validGoalDate(els.noteDate.value); const reminderAt = els.reminderEnabled.checked ? new Date(els.reminderAt.value) : null;
+    if (!noteDate) { els.noteDate.setCustomValidity("请选择有效的便签日期"); els.noteDate.reportValidity(); return; }
+    els.noteDate.setCustomValidity("");
     if (reminderAt && (!Number.isFinite(reminderAt.getTime()) || reminderAt <= new Date())) { els.reminderAt.setCustomValidity("请选择未来的提醒时间"); els.reminderAt.reportValidity(); return; }
-    els.reminderAt.setCustomValidity(""); const note = { id: id || uid(), title: els.noteTitle.value.trim(), body: els.noteBody.value.trim(), tag: new FormData(els.form).get("noteTag"), mood: new FormData(els.form).get("noteMood"), pinned: els.notePinned.checked, photo: pendingPhoto, reminderAt: reminderAt ? reminderAt.toISOString() : "", createdAt: old?.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() };
-    if (!note.title || !note.body) return; state.notes = id ? state.notes.map((item) => item.id === id ? note : item) : [note, ...state.notes]; if (old?.reminderAt && !note.reminderAt) cancelNativeReminder(note.id); if (note.reminderAt) scheduleNativeReminder(note); scheduleSave(); renderAll(); closeModal(els.noteModal); showToast(note.reminderAt ? "便签已收好，提醒时间也记住了" : (id ? "便签已经重新收好" : "这一刻，已经替你收好"));
+    els.reminderAt.setCustomValidity(""); const note = { id: id || uid(), title: els.noteTitle.value.trim(), body: els.noteBody.value.trim(), noteDate, tag: new FormData(els.form).get("noteTag"), mood: new FormData(els.form).get("noteMood"), pinned: els.notePinned.checked, photo: pendingPhoto, reminderAt: reminderAt ? reminderAt.toISOString() : "", createdAt: old?.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() };
+    if (!note.title || !note.body) return; state.notes = id ? state.notes.map((item) => item.id === id ? note : item) : [note, ...state.notes];
+    if ($("#calendarView").classList.contains("active")) { selectedDate = noteDate; calendarCursor = new Date(`${noteDate}T12:00:00`); calendarCursor.setDate(1); }
+    if (old?.reminderAt && !note.reminderAt) cancelNativeReminder(note.id); if (note.reminderAt) scheduleNativeReminder(note); scheduleSave(); renderAll(); closeModal(els.noteModal); showToast(note.reminderAt ? "便签已收好，提醒时间也记住了" : `便签已收在 ${shortDate(noteDay(note))}`);
   });
   els.deleteNote.addEventListener("click", () => { const id = els.noteId.value; if (id) { moveToTrash(id); closeModal(els.noteModal); } });
   els.collectNote.addEventListener("click", () => collectToYearbook(els.noteId.value));
@@ -497,7 +533,8 @@ function bindEvents() {
   els.reminderEnabled.addEventListener("change", () => { renderReminderField(); if (els.reminderEnabled.checked) els.reminderAt.focus(); }); els.reminderAt.addEventListener("input", () => els.reminderAt.setCustomValidity(""));
   $("#completeReminder").addEventListener("click", completeActiveReminder); $("#snoozeReminder").addEventListener("click", snoozeActiveReminder);
   $("#calendarPrev").addEventListener("click", () => { calendarCursor = shiftMonth(calendarCursor, -1); selectedDate = null; renderCalendar(); }); $("#calendarNext").addEventListener("click", () => { calendarCursor = shiftMonth(calendarCursor, 1); selectedDate = null; renderCalendar(); });
-  els.calendarGrid.addEventListener("click", (event) => { const day = event.target.closest("[data-date]"); if (!day) return; selectedDate = selectedDate === day.dataset.date ? null : day.dataset.date; const d = new Date(`${day.dataset.date}T12:00:00`); calendarCursor = new Date(d.getFullYear(), d.getMonth(), 1); renderCalendar(); });
+  $("#calendarToday").addEventListener("click", () => { const today = new Date(); selectedDate = dateKey(today); calendarCursor = new Date(today.getFullYear(), today.getMonth(), 1); renderCalendar(); });
+  els.calendarGrid.addEventListener("click", (event) => { const day = event.target.closest("[data-date]"); if (!day) return; selectedDate = day.dataset.date; const d = new Date(`${day.dataset.date}T12:00:00`); calendarCursor = new Date(d.getFullYear(), d.getMonth(), 1); renderCalendar(); });
   els.timeline.addEventListener("click", (event) => { const button = event.target.closest("[data-id]"); if (button) openNote(button.dataset.id); });
   $("#reviewPrev").addEventListener("click", () => { reviewCursor = shiftMonth(reviewCursor, -1); renderReview(); }); $("#reviewNext").addEventListener("click", () => { reviewCursor = shiftMonth(reviewCursor, 1); renderReview(); }); $("#addReviewToYearbook").addEventListener("click", addReviewToYearbook);
   els.editor.addEventListener("input", () => updateMarkdown(true)); $$('[data-mode]').forEach((button) => button.addEventListener("click", () => { const isPreview = button.dataset.mode === "preview"; $$('[data-mode]').forEach((item) => item.classList.toggle("active", item === button)); els.editor.hidden = isPreview; els.preview.hidden = !isPreview; if (isPreview) els.preview.innerHTML = markdownToHtml(state.yearbook); }));
@@ -525,8 +562,23 @@ function updateInstallUi(installed = matchMedia("(display-mode: standalone)").ma
 
 function registerWebMcpTools() {
   const context = document.modelContext; if (!context?.registerTool) return; const register = (tool) => { try { Promise.resolve(context.registerTool(tool)).catch(() => {}); } catch {} };
-  register({ name: "list_notes", title: "查看便签", description: "查看拾光中最近的便签，可按标签筛选。", inputSchema: { type: "object", properties: { tag: { type: "string", enum: ["生活", "灵感", "片刻"] }, limit: { type: "integer", minimum: 1, maximum: 20 } }, additionalProperties: false }, annotations: { readOnlyHint: true, untrustedContentHint: true }, execute(input = {}) { const list = state.notes.filter((n) => !input.tag || n.tag === input.tag).slice(0, input.limit || 10).map(({id,title,body,tag,mood,createdAt,pinned}) => ({id,title,body,tag,mood,createdAt,pinned})); return { notes: list }; } });
-  register({ name: "create_note", title: "创建便签", description: "创建一张生活便签并保存到当前设备，可设置提醒时间。", inputSchema: { type: "object", properties: { title: { type: "string", minLength: 1, maxLength: 40 }, body: { type: "string", minLength: 1, maxLength: 1000 }, tag: { type: "string", enum: ["生活", "灵感", "片刻"] }, mood: { type: "string", enum: Object.keys(moods) }, pinned: { type: "boolean" }, reminderAt: { type: "string", description: "可选的 ISO 8601 未来时间" } }, required: ["title", "body", "tag", "mood"], additionalProperties: false }, annotations: { readOnlyHint: false, untrustedContentHint: false }, async execute(input) { if (!input || typeof input.title !== "string" || typeof input.body !== "string" || !["生活","灵感","片刻"].includes(input.tag) || !moods[input.mood]) throw new Error("便签内容无效"); const reminderAt = input.reminderAt ? new Date(input.reminderAt) : null; if (reminderAt && (!Number.isFinite(reminderAt.getTime()) || reminderAt <= new Date())) throw new Error("提醒时间必须是未来时间"); const note = { id: uid(), title: input.title.trim().slice(0,40), body: input.body.trim().slice(0,1000), tag: input.tag, mood: input.mood, pinned: Boolean(input.pinned), photo: "", reminderAt: reminderAt ? reminderAt.toISOString() : "", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }; if (!note.title || !note.body) throw new Error("标题和内容不能为空"); state.notes.unshift(note); if (note.reminderAt) scheduleNativeReminder(note); await writeToStorage(); renderAll(); switchView("notes"); return { id: note.id, saved: true, reminderAt: note.reminderAt || null }; } });
+  register({ name: "list_notes", title: "查看便签", description: "查看拾光中最近的便签，可按标签筛选。", inputSchema: { type: "object", properties: { tag: { type: "string", enum: ["生活", "灵感", "片刻"] }, limit: { type: "integer", minimum: 1, maximum: 20 } }, additionalProperties: false }, annotations: { readOnlyHint: true, untrustedContentHint: true }, execute(input = {}) { const list = state.notes.filter((n) => !input.tag || n.tag === input.tag).slice(0, input.limit || 10).map(({id,title,body,tag,mood,noteDate,createdAt,pinned,reminderAt}) => ({id,title,body,tag,mood,noteDate,createdAt,pinned,reminderAt})); return { notes: list }; } });
+  register({
+    name: "create_note", title: "创建便签", description: "创建一张生活便签并保存到当前设备，可选择过去、今天或未来的便签日期，并单独设置提醒时间。",
+    inputSchema: { type: "object", properties: { title: { type: "string", minLength: 1, maxLength: 40 }, body: { type: "string", minLength: 1, maxLength: 1000 }, tag: { type: "string", enum: ["生活", "灵感", "片刻"] }, mood: { type: "string", enum: Object.keys(moods) }, pinned: { type: "boolean" }, noteDate: { type: "string", description: "便签所在的日历日期，YYYY-MM-DD；省略时为今天" }, reminderAt: { type: "string", description: "可选的 ISO 8601 未来提醒时间，独立于便签日期" } }, required: ["title", "body", "tag", "mood"], additionalProperties: false },
+    annotations: { readOnlyHint: false, untrustedContentHint: false },
+    async execute(input) {
+      if (!input || typeof input.title !== "string" || typeof input.body !== "string" || !["生活","灵感","片刻"].includes(input.tag) || !moods[input.mood]) throw new Error("便签内容无效");
+      const noteDate = input.noteDate === undefined ? dateKey(new Date()) : validGoalDate(input.noteDate);
+      if (!noteDate) throw new Error("便签日期必须是有效的 YYYY-MM-DD 日期");
+      const reminderAt = input.reminderAt ? new Date(input.reminderAt) : null;
+      if (reminderAt && (!Number.isFinite(reminderAt.getTime()) || reminderAt <= new Date())) throw new Error("提醒时间必须是未来时间");
+      const note = { id: uid(), title: input.title.trim().slice(0,40), body: input.body.trim().slice(0,1000), noteDate, tag: input.tag, mood: input.mood, pinned: Boolean(input.pinned), photo: "", reminderAt: reminderAt ? reminderAt.toISOString() : "", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+      if (!note.title || !note.body) throw new Error("标题和内容不能为空");
+      state.notes.unshift(note); if (note.reminderAt) scheduleNativeReminder(note); await writeToStorage(); renderAll(); switchView("notes");
+      return { id: note.id, saved: true, noteDate: note.noteDate, reminderAt: note.reminderAt || null };
+    }
+  });
   register({ name: "add_monthly_review_to_yearbook", title: "收录月度回顾", description: "把指定月份的便签整理成月度回顾并写入年终手记。", inputSchema: { type: "object", properties: { year: { type: "integer", minimum: 2000, maximum: 2100 }, month: { type: "integer", minimum: 1, maximum: 12 } }, required: ["year", "month"], additionalProperties: false }, annotations: { readOnlyHint: false, untrustedContentHint: false }, async execute(input) { reviewCursor = new Date(input.year, input.month - 1, 1); const block = monthlyReviewMarkdown(); if (!block) throw new Error("这个月还没有便签"); state.yearbook = `${state.yearbook.trimEnd()}${block}`; els.editor.value = state.yearbook; updateMarkdown(false); await writeToStorage(); renderReview(); switchView("yearbook"); return { saved: true, noteCount: notesForMonth(reviewCursor).length }; } });
 }
 

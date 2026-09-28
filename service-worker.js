@@ -1,5 +1,5 @@
 const CACHE_PREFIX = `shiguang:${self.registration.scope}:`;
-const CACHE = `${CACHE_PREFIX}v6-github`;
+const CACHE = `${CACHE_PREFIX}v7-calendar`;
 const ASSETS = ["./", "./index.html", "./styles.css", "./app.js", "./manifest.webmanifest", "./icon.svg", "./app-icon.png"];
 const SHELL = new URL("./index.html", self.registration.scope).href;
 
